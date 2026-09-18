@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>학예회 실시간 승부예측</title>
+    <title>승부 예측 베팅</title>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -19,104 +19,130 @@
             min-height: 100vh;
         }
 
-        /* 모바일 프레임 레이아웃 */
+        /* 모바일 꽉 찬 프레임 레이아웃 */
         .app-container {
             width: 100%;
-            max-width: 420px;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 880px;
             background: #12141d;
-            border-radius: 24px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0, 240, 255, 0.1);
+            border-radius: 20px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             border: 1px solid #222638;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
         }
 
-        /* 헤더 */
+        /* 헤더 & 내 포인트 현황 */
         .header {
             text-align: center;
-            padding: 10px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #1f2436;
         }
-        .header h2 { font-size: 20px; color: #00f0ff; letter-spacing: 1px; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5); }
-        .header p { font-size: 12px; color: #8a8f9d; margin-top: 4px; }
-
-        /* 메인 배팅 카드 영역 (3구역 배치) */
-        .game-board {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
+        .header h2 { font-size: 18px; color: #00f0ff; letter-spacing: 1px; text-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
+        .point-display {
+            margin-top: 6px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #ffd700;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: inline-block;
+            border: 1px solid rgba(255, 215, 0, 0.3);
         }
 
-        .card {
-            background: #1a1d2a;
-            border-radius: 14px;
-            padding: 16px 8px;
-            text-align: center;
+        /* 화면 꽉 차는 반반(Split) 구역 */
+        .split-board {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .team-card {
+            flex: 1;
+            border-radius: 18px;
+            padding: 20px 10px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
+            transition: transform 0.1s;
         }
 
-        /* 각 영역 색상 지정 */
-        .card.red { border: 2px solid #ff0055; box-shadow: inset 0 0 12px rgba(255, 0, 85, 0.2); }
-        .card.draw { border: 2px solid #00ff66; box-shadow: inset 0 0 12px rgba(0, 255, 102, 0.2); grid-column: span 1; }
-        .card.blue { border: 2px solid #0066ff; box-shadow: inset 0 0 12px rgba(0, 102, 255, 0.2); }
-
-        .card:active { transform: scale(0.95); }
-        .card.disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
-
-        .card-title { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
-        .red .card-title { color: #ff4d79; }
-        .draw .card-title { color: #00ff66; }
-        .blue .card-title { color: #4d94ff; }
-
-        .percent-tag {
-            font-size: 22px;
-            font-weight: 900;
-            margin: 6px 0;
+        .team-card.red {
+            background: linear-gradient(180deg, #2a0813 0%, #17040a 100%);
+            border: 2px solid #ff0055;
+            box-shadow: inset 0 0 15px rgba(255, 0, 85, 0.3), 0 0 15px rgba(255, 0, 85, 0.2);
         }
 
-        .vote-count {
-            font-size: 11px;
-            color: #a0a5b5;
-            background: rgba(0,0,0,0.4);
-            padding: 4px 8px;
-            border-radius: 10px;
-            width: 100%;
+        .team-card.blue {
+            background: linear-gradient(180deg, #081a2a 0%, #040e17 100%);
+            border: 2px solid #0066ff;
+            box-shadow: inset 0 0 15px rgba(0, 102, 255, 0.3), 0 0 15px rgba(0, 102, 255, 0.2);
         }
 
-        /* 퍼센트 비주얼 게이지 */
-        .gauge-container {
-            width: 100%;
-            height: 12px;
-            background: #0b0c10;
-            border-radius: 6px;
-            overflow: hidden;
-            display: flex;
-            margin-top: 10px;
+        .team-card:active { transform: scale(0.96); }
+
+        .team-title { font-size: 22px; font-weight: 900; }
+        .red .team-title { color: #ff4d79; text-shadow: 0 0 10px rgba(255, 77, 121, 0.6); }
+        .blue .team-title { color: #4d94ff; text-shadow: 0 0 10px rgba(77, 148, 255, 0.6); }
+
+        .percent-val { font-size: 36px; font-weight: 900; }
+        .total-pts { font-size: 13px; color: #a0a5b5; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 12px; }
+
+        /* 코인(칩) 선택 세션 */
+        .chip-section {
+            background: #181b26;
+            padding: 14px 10px;
+            border-radius: 18px;
             border: 1px solid #222638;
+            text-align: center;
         }
-        .gauge-red { background: #ff0055; height: 100%; width: 33.3%; transition: width 0.4s ease; }
-        .gauge-draw { background: #00ff66; height: 100%; width: 33.3%; transition: width 0.4s ease; }
-        .gauge-blue { background: #0066ff; height: 100%; width: 33.4%; transition: width 0.4s ease; }
+        .chip-label { font-size: 12px; color: #8a8f9d; margin-bottom: 10px; }
 
-        /* 하단 상태 표시 */
+        .chip-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .chip {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 900;
+            font-size: 13px;
+            cursor: pointer;
+            border: 4px dashed rgba(255,255,255,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+            transition: all 0.2s ease;
+        }
+
+        .chip[data-val="50"] { background: #ff4d4f; color: white; }
+        .chip[data-val="100"] { background: #1890ff; color: white; }
+        .chip[data-val="200"] { background: #52c41a; color: white; }
+        .chip[data-val="500"] { background: #faad14; color: black; }
+
+        .chip.selected {
+            transform: scale(1.18);
+            border: 4px solid #ffffff;
+            box-shadow: 0 0 15px #ffffff;
+        }
+
+        /* 하단 안내 메시지 */
         .status-box {
             text-align: center;
-            background: #181b26;
-            padding: 12px;
-            border-radius: 12px;
             font-size: 13px;
             color: #00f0ff;
-            border: 1px solid #222638;
+            min-height: 20px;
         }
     </style>
 </head>
@@ -125,41 +151,35 @@
 <div class="app-container">
     <div class="header">
         <h2>⚔️ 학예회 승부예측</h2>
-        <p>실시간 수치 현황 (1인 1회 참여)</p>
+        <div class="point-display">💰 My Point: <span id="myPoint">1000</span> P</div>
     </div>
 
-    <!-- 게이지 바 -->
-    <div class="gauge-container">
-        <div id="gRed" class="gauge-red"></div>
-        <div id="gDraw" class="gauge-draw"></div>
-        <div id="gBlue" class="gauge-blue"></div>
-    </div>
-
-    <!-- 카드 보드 -->
-    <div class="game-board">
-        <!-- 레드 -->
-        <div id="btnRed" class="card red" onclick="vote('red')">
-            <div class="card-title">🔴 레드팀</div>
-            <div id="pRed" class="percent-tag">0%</div>
-            <div id="cRed" class="vote-count">0 표</div>
+    <!-- 반반 Split 구역 -->
+    <div class="split-board">
+        <div id="btnRed" class="team-card red" onclick="vote('red')">
+            <div class="team-title">🔴 RED</div>
+            <div id="pRed" class="percent-val">50%</div>
+            <div id="cRed" class="total-pts">0 P</div>
         </div>
-
-        <!-- 무승부 -->
-        <div id="btnDraw" class="card draw" onclick="vote('draw')">
-            <div class="card-title">🟢 무승부</div>
-            <div id="pDraw" class="percent-tag">0%</div>
-            <div id="cDraw" class="vote-count">0 표</div>
-        </div>
-
-        <!-- 블루 -->
-        <div id="btnBlue" class="card blue" onclick="vote('blue')">
-            <div class="card-title">🔵 블루팀</div>
-            <div id="pBlue" class="percent-tag">0%</div>
-            <div id="cBlue" class="vote-count">0 표</div>
+        <div id="btnBlue" class="team-card blue" onclick="vote('blue')">
+            <div class="team-title">🔵 BLUE</div>
+            <div id="pBlue" class="percent-val">50%</div>
+            <div id="cBlue" class="total-pts">0 P</div>
         </div>
     </div>
 
-    <div id="statusMsg" class="status-box">원하는 항목을 터치하여 예측에 참여하세요!</div>
+    <!-- 코인 선택 메뉴 -->
+    <div class="chip-section">
+        <div class="chip-label">투자할 코인을 선택한 후 팀 카드를 터치하세요!</div>
+        <div class="chip-container">
+            <div class="chip selected" data-val="50" onclick="selectChip(50, this)">50</div>
+            <div class="chip" data-val="100" onclick="selectChip(100, this)">100</div>
+            <div class="chip" data-val="200" onclick="selectChip(200, this)">200</div>
+            <div class="chip" data-val="500" onclick="selectChip(500, this)">500</div>
+        </div>
+    </div>
+
+    <div id="statusMsg" class="status-box">응원하는 팀을 터치해 포인트를 투표하세요!</div>
 </div>
 
 <script>
@@ -176,52 +196,59 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    if (localStorage.getItem('voted')) {
-        disableAll("이미 예측에 참여하셨습니다.");
+    // 초기 포인트 세팅 (기본 1000P)
+    let currentPoint = localStorage.getItem('userPoint');
+    if (currentPoint === null) {
+        currentPoint = 1000;
+        localStorage.setItem('userPoint', currentPoint);
+    } else {
+        currentPoint = parseInt(currentPoint);
+    }
+    document.getElementById('myPoint').innerText = currentPoint.toLocaleString();
+
+    let selectedAmount = 50;
+
+    function selectChip(amount, el) {
+        selectedAmount = amount;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
     }
 
     function vote(team) {
-        if (localStorage.getItem('voted')) return;
-
-        db.ref('votes/' + team).transaction((current) => (current || 0) + 1);
-        localStorage.setItem('voted', team);
-        disableAll("예측 투표가 정상 접수되었습니다!");
-    }
-
-    function disableAll(msg) {
-        document.getElementById('btnRed').classList.add('disabled');
-        document.getElementById('btnDraw').classList.add('disabled');
-        document.getElementById('btnBlue').classList.add('disabled');
-        document.getElementById('statusMsg').innerText = msg;
-    }
-
-    db.ref('votes').on('value', (snapshot) => {
-        const data = snapshot.val() || { red: 0, draw: 0, blue: 0 };
-        const red = data.red || 0;
-        const draw = data.draw || 0;
-        const blue = data.blue || 0;
-        const total = red + draw + blue;
-
-        let rP = 0, dP = 0, bP = 0;
-        if (total > 0) {
-            rP = Math.round((red / total) * 100);
-            dP = Math.round((draw / total) * 100);
-            bP = 100 - (rP + dP);
+        if (currentPoint < selectedAmount) {
+            document.getElementById('statusMsg').innerText = "❌ 포인트가 부족합니다!";
+            return;
         }
 
-        // 숫자 갱신
+        // 보유 포인트 차감
+        currentPoint -= selectedAmount;
+        localStorage.setItem('userPoint', currentPoint);
+        document.getElementById('myPoint').innerText = currentPoint.toLocaleString();
+
+        // 파이어베이스 데이터베이스 누적 업데이트
+        db.ref('votes/' + team).transaction((current) => (current || 0) + selectedAmount);
+
+        const teamName = team === 'red' ? '레드' : '블루';
+        document.getElementById('statusMsg').innerText = `✅ ${teamName}팀에 ${selectedAmount}P 응원 투표 완료!`;
+    }
+
+    // 실시간 수치 데이터 로드 및 퍼센티지 계산
+    db.ref('votes').on('value', (snapshot) => {
+        const data = snapshot.val() || { red: 0, blue: 0 };
+        const red = data.red || 0;
+        const blue = data.blue || 0;
+        const total = red + blue;
+
+        let rP = 50, bP = 50;
+        if (total > 0) {
+            rP = Math.round((red / total) * 100);
+            bP = 100 - rP;
+        }
+
         document.getElementById('pRed').innerText = rP + '%';
-        document.getElementById('pDraw').innerText = dP + '%';
         document.getElementById('pBlue').innerText = bP + '%';
-
-        document.getElementById('cRed').innerText = red + ' 표';
-        document.getElementById('cDraw').innerText = draw + ' 표';
-        document.getElementById('cBlue').innerText = blue + ' 표';
-
-        // 게이지 바 폭 조정
-        document.getElementById('gRed').style.width = (total ? rP : 33.3) + '%';
-        document.getElementById('gDraw').style.width = (total ? dP : 33.3) + '%';
-        document.getElementById('gBlue').style.width = (total ? bP : 33.4) + '%';
+        document.getElementById('cRed').innerText = red.toLocaleString() + ' P';
+        document.getElementById('cBlue').innerText = blue.toLocaleString() + ' P';
     });
 </script>
 </body>
