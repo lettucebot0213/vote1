@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>학예회 실시간 승부예측</title>
+    <title>실시간 승부예측 베팅</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
@@ -70,7 +70,7 @@
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: transform 0.1s, border 0.2s;
         }
 
         .team-card.red {
@@ -83,6 +83,12 @@
             background: linear-gradient(180deg, #081a2a 0%, #040e17 100%);
             border: 2px solid #0066ff;
             box-shadow: inset 0 0 15px rgba(0, 102, 255, 0.3);
+        }
+
+        .team-card.locked {
+            opacity: 0.35;
+            filter: grayscale(80%);
+            cursor: not-allowed;
         }
 
         .team-card:active { transform: scale(0.96); }
@@ -126,9 +132,9 @@
 
         .chip.selected { transform: scale(1.15); border: 3px solid #ffffff; box-shadow: 0 0 12px #ffffff; }
 
-        .status-box { text-align: center; font-size: 12px; color: #00f0ff; min-height: 18px; }
+        .status-box { text-align: center; font-size: 12px; color: #00f0ff; min-height: 18px; font-weight: bold; }
 
-        /* 모달 창 (닉네임 / 관리자) */
+        /* 모달 레이아웃 */
         .modal-overlay {
             display: none;
             position: absolute;
@@ -138,7 +144,7 @@
             z-index: 100;
             padding: 20px;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
         .nick-input-box {
@@ -166,11 +172,13 @@
             background: #181b26; 
             padding: 10px 12px; 
             border-radius: 8px; 
-            font-size: 13px; 
+            font-size: 12px; 
         }
 
         .close-btn { background: #ff4d4f; border: none; padding: 10px; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: auto; }
         .action-btn { padding: 10px; background: #222638; border: 1px solid #00f0ff; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .settle-red { background: #2a0813; border: 1px solid #ff0055; color: #ff4d79; }
+        .settle-blue { background: #081a2a; border: 1px solid #0066ff; color: #4d94ff; }
     </style>
 </head>
 <body>
@@ -198,7 +206,7 @@
 
     <!-- 코인 선택 메뉴 -->
     <div class="chip-section">
-        <div class="chip-label">코인 선택 후 팀 카드를 클릭해 응원하세요!</div>
+        <div class="chip-label">코인 선택 후 선택한 팀 카드를 클릭해 투자하세요!</div>
         <div class="chip-container">
             <div class="chip selected" data-val="50" onclick="selectChip(50, this)">50</div>
             <div class="chip" data-val="100" onclick="selectChip(100, this)">100</div>
@@ -207,13 +215,13 @@
         </div>
     </div>
 
-    <div id="statusMsg" class="status-box">실시간 접속 완료</div>
+    <div id="statusMsg" class="status-box">팀을 선택해 포인트를 투자하세요!</div>
 
     <!-- 닉네임 입력 모달 -->
     <div id="nickModal" class="modal-overlay" style="display: flex;">
         <div class="nick-input-box">
             <h3 style="color: #00f0ff;">🙋‍♂️ 닉네임을 입력하세요</h3>
-            <p style="font-size: 12px; color: #888;">투표에 사용할 이름/학번을 입력해주세요.</p>
+            <p style="font-size: 12px; color: #888;">이름/학번을 입력해 승부예측에 참여하세요.</p>
             <input type="text" id="nickInput" placeholder="예: 3학년1반 김철수" maxlength="12">
             <button class="action-btn" onclick="saveNickname()">입장하기</button>
         </div>
@@ -222,11 +230,17 @@
     <!-- 관리자 패널 팝업 -->
     <div id="adminModal" class="modal-overlay">
         <h3 style="color: #ffd700; text-align: center;">👑 관리자 제어판</h3>
-        <button class="action-btn" onclick="giveAllUsers(1000)">🎁 접속자 전체에게 +1000P 지급</button>
-        <button class="action-btn" style="border-color: #ff4d4f; color: #ff4d4f;" onclick="resetVotes()">⚠️ 전체 투표 포인트 초기화</button>
         
-        <h4 style="margin-top: 8px; font-size: 13px; color: #aaa;">현재 접속자 현황 (<span id="onlineCount">0</span>명 온라인)</h4>
-        <div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto;"></div>
+        <div style="display:flex; gap:8px;">
+            <button class="action-btn settle-red" style="flex:1;" onclick="settleWinner('red')">🏆 RED 승리 (2배 지급)</button>
+            <button class="action-btn settle-blue" style="flex:1;" onclick="settleWinner('blue')">🏆 BLUE 승리 (2배 지급)</button>
+        </div>
+
+        <button class="action-btn" onclick="giveAllUsers(1000)">🎁 모든 사용자에게 +1000P 지급</button>
+        <button class="action-btn" style="border-color: #ff4d4f; color: #ff4d4f;" onclick="resetVotes()">⚠️ 정산 없이 투표 초기화</button>
+        
+        <h4 style="margin-top: 6px; font-size: 12px; color: #aaa;">현재 접속자 (<span id="onlineCount">0</span>명 온라인)</h4>
+        <div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;"></div>
 
         <button class="close-btn" onclick="closeAdmin()">닫기</button>
     </div>
@@ -254,9 +268,10 @@
 
     let myNick = localStorage.getItem('appUserNick');
     let myCurrentPoints = 0;
+    let myVotedTeam = null;      // 선택한 팀 (red/blue)
+    let myInvestedAmount = 0;    // 이번 라운드에 내가 투자한 총 포인트
     let selectedAmount = 50;
 
-    // 닉네임 유무 확인
     if (myNick) {
         document.getElementById('nickModal').style.display = 'none';
         initUserSession();
@@ -264,43 +279,63 @@
 
     function saveNickname() {
         const val = document.getElementById('nickInput').value.trim();
-        if (!val) {
-            alert("닉네임을 입력해주세요!");
-            return;
-        }
+        if (!val) { alert("닉네임을 입력해주세요!"); return; }
         myNick = val;
         localStorage.setItem('appUserNick', myNick);
         document.getElementById('nickModal').style.display = 'none';
         initUserSession();
     }
 
-    // 사용자 세션 및 파이어베이스 연결 설정
     function initUserSession() {
         document.getElementById('myNickDisplay').innerText = "👤 " + myNick;
         const userRef = db.ref('users/' + myId);
 
-        // 내 정보 동기화 및 접속 상태 실시간 업데이트
         userRef.on('value', (snapshot) => {
             const val = snapshot.val();
             if (!val) {
-                userRef.set({ name: myNick, points: 1000, online: true });
+                userRef.set({ name: myNick, points: 1000, votedTeam: null, investedAmount: 0, online: true });
                 myCurrentPoints = 1000;
+                myVotedTeam = null;
+                myInvestedAmount = 0;
             } else {
                 myCurrentPoints = val.points || 0;
+                myVotedTeam = val.votedTeam || null;
+                myInvestedAmount = val.investedAmount || 0;
                 if (val.name !== myNick) userRef.update({ name: myNick });
             }
+            
             document.getElementById('myPoint').innerText = myCurrentPoints.toLocaleString();
+            updateUIState();
         });
 
-        // 파이어베이스 접속 감지 (온라인/오프라인 상태 처리)
         const connectedRef = db.ref('.info/connected');
         connectedRef.on('value', (snap) => {
             if (snap.val() === true) {
                 const conRef = db.ref('users/' + myId + '/online');
-                conRef.onDisconnect().set(false); // 창을 닫으면 오프라인으로 자동 변경
-                conRef.set(true); // 접속 시 온라인으로 변경
+                conRef.onDisconnect().set(false);
+                conRef.set(true);
             }
         });
+    }
+
+    // 선택한 팀 이외의 카드 비활성화 시각화
+    function updateUIState() {
+        const btnRed = document.getElementById('btnRed');
+        const btnBlue = document.getElementById('btnBlue');
+        const statusMsg = document.getElementById('statusMsg');
+
+        btnRed.classList.remove('locked');
+        btnBlue.classList.remove('locked');
+
+        if (myVotedTeam === 'red') {
+            btnBlue.classList.add('locked');
+            statusMsg.innerText = `🔴 RED팀 선택됨 (누적 투자: ${myInvestedAmount.toLocaleString()}P)`;
+        } else if (myVotedTeam === 'blue') {
+            btnRed.classList.add('locked');
+            statusMsg.innerText = `🔵 BLUE팀 선택됨 (누적 투자: ${myInvestedAmount.toLocaleString()}P)`;
+        } else {
+            statusMsg.innerText = "원하는 팀을 터치해 투자하세요!";
+        }
     }
 
     function selectChip(amount, el) {
@@ -309,21 +344,35 @@
         el.classList.add('selected');
     }
 
+    // 투표/투자 로직 (한 팀 선택 시 다른 팀 투표 불가)
     function vote(team) {
         if (!myNick) return;
-        if (myCurrentPoints < selectedAmount) {
-            document.getElementById('statusMsg').innerText = "❌ 포인트가 부족합니다!";
+        
+        if (myVotedTeam && myVotedTeam !== team) {
+            alert(`❌ 이미 ${myVotedTeam === 'red' ? 'RED' : 'BLUE'}팀을 선택하셨습니다!\n반대편 팀에는 투표할 수 없습니다.`);
             return;
         }
 
-        db.ref('users/' + myId).update({ points: myCurrentPoints - selectedAmount });
-        db.ref('votes/' + team).transaction((current) => (current || 0) + selectedAmount);
+        if (myCurrentPoints < selectedAmount) {
+            alert("❌ 잔여 포인트가 부족합니다!");
+            return;
+        }
 
-        const teamName = team === 'red' ? '레드' : '블루';
-        document.getElementById('statusMsg').innerText = `✅ ${teamName}팀에 ${selectedAmount}P 투표 완료!`;
+        const newPoints = myCurrentPoints - selectedAmount;
+        const newInvested = myInvestedAmount + selectedAmount;
+
+        // 내 상태 업데이트 (팀 고정 + 투자금 누적)
+        db.ref('users/' + myId).update({
+            points: newPoints,
+            votedTeam: team,
+            investedAmount: newInvested
+        });
+
+        // 글로벌 집계 누적
+        db.ref('votes/' + team).transaction((current) => (current || 0) + selectedAmount);
     }
 
-    // 전체 투표 수치 수신
+    // 실시간 현황 수신
     db.ref('votes').on('value', (snapshot) => {
         const data = snapshot.val() || { red: 0, blue: 0 };
         const red = data.red || 0;
@@ -359,7 +408,45 @@
         document.getElementById('adminModal').style.display = 'none';
     }
 
-    // 접속 유저 모니터링 (실시간 온라인 감지)
+    // 🏆 승리 정산 시스템 (2배 배당금 지급)
+    function settleWinner(winningTeam) {
+        const teamTitle = winningTeam === 'red' ? '🔴 RED' : '🔵 BLUE';
+        if (!confirm(`${teamTitle} 팀의 승리로 정산하시겠습니까?\n승리 팀 투자자에게 2배 배당금이 지급되며 다음 라운드로 리셋됩니다.`)) return;
+
+        db.ref('users').once('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const updates = {};
+
+            Object.keys(users).forEach(uid => {
+                const u = users[uid];
+                let currentPts = u.points || 0;
+                const invested = u.investedAmount || 0;
+
+                // 승자에게는 투자금의 2배 환급
+                if (u.votedTeam === winningTeam && invested > 0) {
+                    currentPts += (invested * 2);
+                }
+
+                // 모든 유저의 라운드 투자 상태 리셋 (패자는 이미 차감된 상태이므로 정산금 0P)
+                updates[`users/${uid}/points`] = currentPts;
+                updates[`users[` + uid + `/votedTeam`]] = null;
+                updates[`users/` + uid + `/investedAmount`] = 0;
+            });
+
+            // 투표판 리셋
+            updates['votes/red'] = 0;
+            updates['votes/blue'] = 0;
+
+            db.ref().update(updates, (err) => {
+                if (!err) {
+                    alert(`🎉 ${teamTitle} 승리 정산이 완료되었습니다!`);
+                } else {
+                    alert("정산 처리 중 오류가 발생했습니다.");
+                }
+            });
+        });
+    }
+
     function listenUserList() {
         db.ref('users').on('value', (snapshot) => {
             const users = snapshot.val() || {};
@@ -373,14 +460,16 @@
                 const isOnline = u.online === true;
                 if (isOnline) onlineUsersCount++;
 
+                const votedStr = u.votedTeam ? (u.votedTeam === 'red' ? '🔴' : '🔵') : '⚪';
+
                 const item = document.createElement('div');
                 item.className = 'admin-user-item';
                 item.innerHTML = `
                     <div>
-                        <span>${isOnline ? '🟢' : '⚪'} <b>${u.name || '익명'}</b></span>
-                        <div style="font-size: 10px; color: #888;">${u.points || 0} P</div>
+                        <span>${isOnline ? '🟢' : '⚫'} <b>${u.name || '익명'}</b> [${votedStr}]</span>
+                        <div style="font-size: 10px; color: #aaa;">잔여: ${u.points || 0}P | 투자: ${u.investedAmount || 0}P</div>
                     </div>
-                    <button style="padding:5px 10px; background:#00f0ff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="givePoints('${uid}', 500)">+500P</button>
+                    <button style="padding:4px 8px; background:#00f0ff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="givePoints('${uid}', 500)">+500P</button>
                 `;
                 container.appendChild(item);
             });
@@ -404,8 +493,17 @@
     }
 
     function resetVotes() {
-        if (confirm("정말로 모든 투표 포인트를 0으로 초기화하시겠습니까?")) {
+        if (confirm("정산 없이 투표 상태와 수치만 0으로 리셋하시겠습니까?")) {
             db.ref('votes').set({ red: 0, blue: 0 });
+            db.ref('users').once('value', (snapshot) => {
+                const users = snapshot.val() || {};
+                const updates = {};
+                Object.keys(users).forEach(uid => {
+                    updates[`users/${uid}/votedTeam`] = null;
+                    updates[`users/${uid}/investedAmount`] = 0;
+                });
+                db.ref().update(updates);
+            });
             alert("투표가 초기화되었습니다.");
         }
     }
