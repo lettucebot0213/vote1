@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>승부 예측 베팅</title>
-    <!-- Firebase SDK -->
+    <title>학예회 실시간 승부예측</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
@@ -19,7 +18,6 @@
             min-height: 100vh;
         }
 
-        /* 모바일 꽉 찬 프레임 레이아웃 */
         .app-container {
             width: 100%;
             max-width: 430px;
@@ -32,16 +30,18 @@
             border: 1px solid #222638;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
+            position: relative;
         }
 
-        /* 헤더 & 내 포인트 현황 */
         .header {
             text-align: center;
             padding: 6px 0;
             border-bottom: 1px solid #1f2436;
         }
-        .header h2 { font-size: 18px; color: #00f0ff; letter-spacing: 1px; text-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
+        .header h2 { font-size: 18px; color: #00f0ff; letter-spacing: 1px; cursor: pointer; }
+        .user-id-tag { font-size: 11px; color: #00ff66; margin-top: 3px; font-weight: bold; }
+
         .point-display {
             margin-top: 6px;
             font-size: 15px;
@@ -54,7 +54,6 @@
             border: 1px solid rgba(255, 215, 0, 0.3);
         }
 
-        /* 화면 꽉 차는 반반(Split) 구역 */
         .split-board {
             flex: 1;
             display: flex;
@@ -77,52 +76,46 @@
         .team-card.red {
             background: linear-gradient(180deg, #2a0813 0%, #17040a 100%);
             border: 2px solid #ff0055;
-            box-shadow: inset 0 0 15px rgba(255, 0, 85, 0.3), 0 0 15px rgba(255, 0, 85, 0.2);
+            box-shadow: inset 0 0 15px rgba(255, 0, 85, 0.3);
         }
 
         .team-card.blue {
             background: linear-gradient(180deg, #081a2a 0%, #040e17 100%);
             border: 2px solid #0066ff;
-            box-shadow: inset 0 0 15px rgba(0, 102, 255, 0.3), 0 0 15px rgba(0, 102, 255, 0.2);
+            box-shadow: inset 0 0 15px rgba(0, 102, 255, 0.3);
         }
 
         .team-card:active { transform: scale(0.96); }
 
         .team-title { font-size: 22px; font-weight: 900; }
-        .red .team-title { color: #ff4d79; text-shadow: 0 0 10px rgba(255, 77, 121, 0.6); }
-        .blue .team-title { color: #4d94ff; text-shadow: 0 0 10px rgba(77, 148, 255, 0.6); }
+        .red .team-title { color: #ff4d79; }
+        .blue .team-title { color: #4d94ff; }
 
         .percent-val { font-size: 36px; font-weight: 900; }
-        .total-pts { font-size: 13px; color: #a0a5b5; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 12px; }
+        .total-pts { font-size: 12px; color: #a0a5b5; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 12px; }
 
-        /* 코인(칩) 선택 세션 */
         .chip-section {
             background: #181b26;
-            padding: 14px 10px;
+            padding: 12px 10px;
             border-radius: 18px;
             border: 1px solid #222638;
             text-align: center;
         }
-        .chip-label { font-size: 12px; color: #8a8f9d; margin-bottom: 10px; }
+        .chip-label { font-size: 11px; color: #8a8f9d; margin-bottom: 8px; }
 
-        .chip-container {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-        }
+        .chip-container { display: flex; justify-content: space-around; align-items: center; }
 
         .chip {
-            width: 58px;
-            height: 58px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: 900;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
-            border: 4px dashed rgba(255,255,255,0.3);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+            border: 3px dashed rgba(255,255,255,0.3);
             transition: all 0.2s ease;
         }
 
@@ -131,27 +124,62 @@
         .chip[data-val="200"] { background: #52c41a; color: white; }
         .chip[data-val="500"] { background: #faad14; color: black; }
 
-        .chip.selected {
-            transform: scale(1.18);
-            border: 4px solid #ffffff;
-            box-shadow: 0 0 15px #ffffff;
+        .chip.selected { transform: scale(1.15); border: 3px solid #ffffff; box-shadow: 0 0 12px #ffffff; }
+
+        .status-box { text-align: center; font-size: 12px; color: #00f0ff; min-height: 18px; }
+
+        /* 모달 창 (닉네임 / 관리자) */
+        .modal-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            border-radius: 20px;
+            z-index: 100;
+            padding: 20px;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        /* 하단 안내 메시지 */
-        .status-box {
+        .nick-input-box {
+            margin: auto 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             text-align: center;
-            font-size: 13px;
-            color: #00f0ff;
-            min-height: 20px;
         }
+
+        .nick-input-box input {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #00f0ff;
+            background: #181b26;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .admin-user-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: #181b26; 
+            padding: 10px 12px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+        }
+
+        .close-btn { background: #ff4d4f; border: none; padding: 10px; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: auto; }
+        .action-btn { padding: 10px; background: #222638; border: 1px solid #00f0ff; color: white; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
     <div class="header">
-        <h2>⚔️ 학예회 승부예측</h2>
-        <div class="point-display">💰 My Point: <span id="myPoint">1000</span> P</div>
+        <h2 onclick="tryAdminAccess()">⚔️ 학예회 승부예측 ⚙️</h2>
+        <div id="myNickDisplay" class="user-id-tag">닉네임 설정 중...</div>
+        <div class="point-display">💰 내 포인트: <span id="myPoint">...</span> P</div>
     </div>
 
     <!-- 반반 Split 구역 -->
@@ -170,7 +198,7 @@
 
     <!-- 코인 선택 메뉴 -->
     <div class="chip-section">
-        <div class="chip-label">투자할 코인을 선택한 후 팀 카드를 터치하세요!</div>
+        <div class="chip-label">코인 선택 후 팀 카드를 클릭해 응원하세요!</div>
         <div class="chip-container">
             <div class="chip selected" data-val="50" onclick="selectChip(50, this)">50</div>
             <div class="chip" data-val="100" onclick="selectChip(100, this)">100</div>
@@ -179,7 +207,29 @@
         </div>
     </div>
 
-    <div id="statusMsg" class="status-box">응원하는 팀을 터치해 포인트를 투표하세요!</div>
+    <div id="statusMsg" class="status-box">실시간 접속 완료</div>
+
+    <!-- 닉네임 입력 모달 -->
+    <div id="nickModal" class="modal-overlay" style="display: flex;">
+        <div class="nick-input-box">
+            <h3 style="color: #00f0ff;">🙋‍♂️ 닉네임을 입력하세요</h3>
+            <p style="font-size: 12px; color: #888;">투표에 사용할 이름/학번을 입력해주세요.</p>
+            <input type="text" id="nickInput" placeholder="예: 3학년1반 김철수" maxlength="12">
+            <button class="action-btn" onclick="saveNickname()">입장하기</button>
+        </div>
+    </div>
+
+    <!-- 관리자 패널 팝업 -->
+    <div id="adminModal" class="modal-overlay">
+        <h3 style="color: #ffd700; text-align: center;">👑 관리자 제어판</h3>
+        <button class="action-btn" onclick="giveAllUsers(1000)">🎁 접속자 전체에게 +1000P 지급</button>
+        <button class="action-btn" style="border-color: #ff4d4f; color: #ff4d4f;" onclick="resetVotes()">⚠️ 전체 투표 포인트 초기화</button>
+        
+        <h4 style="margin-top: 8px; font-size: 13px; color: #aaa;">현재 접속자 현황 (<span id="onlineCount">0</span>명 온라인)</h4>
+        <div id="userListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto;"></div>
+
+        <button class="close-btn" onclick="closeAdmin()">닫기</button>
+    </div>
 </div>
 
 <script>
@@ -196,17 +246,62 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 초기 포인트 세팅 (기본 1000P)
-    let currentPoint = localStorage.getItem('userPoint');
-    if (currentPoint === null) {
-        currentPoint = 1000;
-        localStorage.setItem('userPoint', currentPoint);
-    } else {
-        currentPoint = parseInt(currentPoint);
+    let myId = localStorage.getItem('appUserId');
+    if (!myId) {
+        myId = 'U_' + Math.floor(100000 + Math.random() * 900000);
+        localStorage.setItem('appUserId', myId);
     }
-    document.getElementById('myPoint').innerText = currentPoint.toLocaleString();
 
+    let myNick = localStorage.getItem('appUserNick');
+    let myCurrentPoints = 0;
     let selectedAmount = 50;
+
+    // 닉네임 유무 확인
+    if (myNick) {
+        document.getElementById('nickModal').style.display = 'none';
+        initUserSession();
+    }
+
+    function saveNickname() {
+        const val = document.getElementById('nickInput').value.trim();
+        if (!val) {
+            alert("닉네임을 입력해주세요!");
+            return;
+        }
+        myNick = val;
+        localStorage.setItem('appUserNick', myNick);
+        document.getElementById('nickModal').style.display = 'none';
+        initUserSession();
+    }
+
+    // 사용자 세션 및 파이어베이스 연결 설정
+    function initUserSession() {
+        document.getElementById('myNickDisplay').innerText = "👤 " + myNick;
+        const userRef = db.ref('users/' + myId);
+
+        // 내 정보 동기화 및 접속 상태 실시간 업데이트
+        userRef.on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (!val) {
+                userRef.set({ name: myNick, points: 1000, online: true });
+                myCurrentPoints = 1000;
+            } else {
+                myCurrentPoints = val.points || 0;
+                if (val.name !== myNick) userRef.update({ name: myNick });
+            }
+            document.getElementById('myPoint').innerText = myCurrentPoints.toLocaleString();
+        });
+
+        // 파이어베이스 접속 감지 (온라인/오프라인 상태 처리)
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                const conRef = db.ref('users/' + myId + '/online');
+                conRef.onDisconnect().set(false); // 창을 닫으면 오프라인으로 자동 변경
+                conRef.set(true); // 접속 시 온라인으로 변경
+            }
+        });
+    }
 
     function selectChip(amount, el) {
         selectedAmount = amount;
@@ -215,24 +310,20 @@
     }
 
     function vote(team) {
-        if (currentPoint < selectedAmount) {
+        if (!myNick) return;
+        if (myCurrentPoints < selectedAmount) {
             document.getElementById('statusMsg').innerText = "❌ 포인트가 부족합니다!";
             return;
         }
 
-        // 보유 포인트 차감
-        currentPoint -= selectedAmount;
-        localStorage.setItem('userPoint', currentPoint);
-        document.getElementById('myPoint').innerText = currentPoint.toLocaleString();
-
-        // 파이어베이스 데이터베이스 누적 업데이트
+        db.ref('users/' + myId).update({ points: myCurrentPoints - selectedAmount });
         db.ref('votes/' + team).transaction((current) => (current || 0) + selectedAmount);
 
         const teamName = team === 'red' ? '레드' : '블루';
-        document.getElementById('statusMsg').innerText = `✅ ${teamName}팀에 ${selectedAmount}P 응원 투표 완료!`;
+        document.getElementById('statusMsg').innerText = `✅ ${teamName}팀에 ${selectedAmount}P 투표 완료!`;
     }
 
-    // 실시간 수치 데이터 로드 및 퍼센티지 계산
+    // 전체 투표 수치 수신
     db.ref('votes').on('value', (snapshot) => {
         const data = snapshot.val() || { red: 0, blue: 0 };
         const red = data.red || 0;
@@ -250,6 +341,74 @@
         document.getElementById('cRed').innerText = red.toLocaleString() + ' P';
         document.getElementById('cBlue').innerText = blue.toLocaleString() + ' P';
     });
+
+    // --- 👑 관리자 시스템 ---
+    const ADMIN_PIN = "7777";
+
+    function tryAdminAccess() {
+        const pin = prompt("관리자 비밀번호를 입력하세요:");
+        if (pin === ADMIN_PIN) {
+            document.getElementById('adminModal').style.display = 'flex';
+            listenUserList();
+        } else if (pin) {
+            alert("비밀번호가 올바르지 않습니다.");
+        }
+    }
+
+    function closeAdmin() {
+        document.getElementById('adminModal').style.display = 'none';
+    }
+
+    // 접속 유저 모니터링 (실시간 온라인 감지)
+    function listenUserList() {
+        db.ref('users').on('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const container = document.getElementById('userListContainer');
+            container.innerHTML = '';
+
+            let onlineUsersCount = 0;
+
+            Object.keys(users).forEach(uid => {
+                const u = users[uid];
+                const isOnline = u.online === true;
+                if (isOnline) onlineUsersCount++;
+
+                const item = document.createElement('div');
+                item.className = 'admin-user-item';
+                item.innerHTML = `
+                    <div>
+                        <span>${isOnline ? '🟢' : '⚪'} <b>${u.name || '익명'}</b></span>
+                        <div style="font-size: 10px; color: #888;">${u.points || 0} P</div>
+                    </div>
+                    <button style="padding:5px 10px; background:#00f0ff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="givePoints('${uid}', 500)">+500P</button>
+                `;
+                container.appendChild(item);
+            });
+
+            document.getElementById('onlineCount').innerText = onlineUsersCount;
+        });
+    }
+
+    function givePoints(targetUid, amount) {
+        db.ref('users/' + targetUid + '/points').transaction((pts) => (pts || 0) + amount);
+    }
+
+    function giveAllUsers(amount) {
+        db.ref('users').once('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            Object.keys(users).forEach(uid => {
+                db.ref('users/' + uid + '/points').transaction((pts) => (pts || 0) + amount);
+            });
+            alert(`모든 접속자에게 ${amount}P 지급 완료!`);
+        });
+    }
+
+    function resetVotes() {
+        if (confirm("정말로 모든 투표 포인트를 0으로 초기화하시겠습니까?")) {
+            db.ref('votes').set({ red: 0, blue: 0 });
+            alert("투표가 초기화되었습니다.");
+        }
+    }
 </script>
 </body>
 </html>
