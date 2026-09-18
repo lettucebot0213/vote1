@@ -163,6 +163,7 @@
             color: white;
             font-size: 16px;
             text-align: center;
+            user-select: auto;
         }
 
         .admin-user-item { 
@@ -222,7 +223,7 @@
         <div class="nick-input-box">
             <h3 style="color: #00f0ff;">🙋‍♂️ 닉네임을 입력하세요</h3>
             <p style="font-size: 12px; color: #888;">이름/학번을 입력해 승부예측에 참여하세요.</p>
-            <input type="text" id="nickInput" placeholder="예: 3학년1반 김철수" maxlength="12">
+            <input type="text" id="nickInput" placeholder="예: 3학년1반 김철수" maxlength="12" onkeypress="if(event.key==='Enter') saveNickname()">
             <button class="action-btn" onclick="saveNickname()">입장하기</button>
         </div>
     </div>
@@ -268,21 +269,31 @@
 
     let myNick = localStorage.getItem('appUserNick');
     let myCurrentPoints = 0;
-    let myVotedTeam = null;      // 선택한 팀 (red/blue)
-    let myInvestedAmount = 0;    // 이번 라운드에 내가 투자한 총 포인트
+    let myVotedTeam = null;
+    let myInvestedAmount = 0;
     let selectedAmount = 50;
 
-    if (myNick) {
+    // 접속 시 저장된 닉네임이 이미 있으면 바로 세션 실행
+    if (myNick && myNick.trim() !== "") {
         document.getElementById('nickModal').style.display = 'none';
         initUserSession();
     }
 
     function saveNickname() {
-        const val = document.getElementById('nickInput').value.trim();
-        if (!val) { alert("닉네임을 입력해주세요!"); return; }
+        const inputEl = document.getElementById('nickInput');
+        const val = inputEl.value.trim();
+        if (!val) { 
+            alert("닉네임을 입력해주세요!"); 
+            return; 
+        }
+        
         myNick = val;
         localStorage.setItem('appUserNick', myNick);
         document.getElementById('nickModal').style.display = 'none';
+        
+        // 데이터베이스에 즉시 저장
+        db.ref('users/' + myId).update({ name: myNick });
+        
         initUserSession();
     }
 
@@ -301,7 +312,9 @@
                 myCurrentPoints = val.points || 0;
                 myVotedTeam = val.votedTeam || null;
                 myInvestedAmount = val.investedAmount || 0;
-                if (val.name !== myNick) userRef.update({ name: myNick });
+                if (val.name !== myNick) {
+                    userRef.update({ name: myNick });
+                }
             }
             
             document.getElementById('myPoint').innerText = myCurrentPoints.toLocaleString();
@@ -318,7 +331,6 @@
         });
     }
 
-    // 선택한 팀 이외의 카드 비활성화 시각화
     function updateUIState() {
         const btnRed = document.getElementById('btnRed');
         const btnBlue = document.getElementById('btnBlue');
@@ -344,7 +356,6 @@
         el.classList.add('selected');
     }
 
-    // 투표/투자 로직 (한 팀 선택 시 다른 팀 투표 불가)
     function vote(team) {
         if (!myNick) return;
         
@@ -361,18 +372,15 @@
         const newPoints = myCurrentPoints - selectedAmount;
         const newInvested = myInvestedAmount + selectedAmount;
 
-        // 내 상태 업데이트 (팀 고정 + 투자금 누적)
         db.ref('users/' + myId).update({
             points: newPoints,
             votedTeam: team,
             investedAmount: newInvested
         });
 
-        // 글로벌 집계 누적
         db.ref('votes/' + team).transaction((current) => (current || 0) + selectedAmount);
     }
 
-    // 실시간 현황 수신
     db.ref('votes').on('value', (snapshot) => {
         const data = snapshot.val() || { red: 0, blue: 0 };
         const red = data.red || 0;
@@ -408,7 +416,6 @@
         document.getElementById('adminModal').style.display = 'none';
     }
 
-    // 🏆 승리 정산 시스템 (2배 배당금 지급)
     function settleWinner(winningTeam) {
         const teamTitle = winningTeam === 'red' ? '🔴 RED' : '🔵 BLUE';
         if (!confirm(`${teamTitle} 팀의 승리로 정산하시겠습니까?\n승리 팀 투자자에게 2배 배당금이 지급되며 다음 라운드로 리셋됩니다.`)) return;
@@ -422,18 +429,15 @@
                 let currentPts = u.points || 0;
                 const invested = u.investedAmount || 0;
 
-                // 승자에게는 투자금의 2배 환급
                 if (u.votedTeam === winningTeam && invested > 0) {
                     currentPts += (invested * 2);
                 }
 
-                // 모든 유저의 라운드 투자 상태 리셋 (패자는 이미 차감된 상태이므로 정산금 0P)
                 updates[`users/${uid}/points`] = currentPts;
-                updates[`users[` + uid + `/votedTeam`]] = null;
-                updates[`users/` + uid + `/investedAmount`] = 0;
+                updates[`users/${uid}/votedTeam`] = null;
+                updates[`users/${uid}/investedAmount`] = 0;
             });
 
-            // 투표판 리셋
             updates['votes/red'] = 0;
             updates['votes/blue'] = 0;
 
