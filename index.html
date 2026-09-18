@@ -186,7 +186,7 @@
 
 <div class="app-container">
     <div class="header">
-        <h2 onclick="tryAdminAccess()">⚔️ 학예회 승부예측 ⚙️</h2>
+        <h2 onclick="tryAdminAccess()">⚔️ 실시간 승부예측 ⚙️</h2>
         <div id="myNickDisplay" class="user-id-tag">닉네임 설정 중...</div>
         <div class="point-display">💰 내 포인트: <span id="myPoint">...</span> P</div>
     </div>
@@ -207,7 +207,7 @@
 
     <!-- 코인 선택 메뉴 -->
     <div class="chip-section">
-        <div class="chip-label">코인 선택 후 선택한 팀 카드를 클릭해 투자하세요!</div>
+        <div class="chip-label">코인 선택 후 선택한 팀 카드를 클릭해 베팅하세요!</div>
         <div class="chip-container">
             <div class="chip selected" data-val="50" onclick="selectChip(50, this)">50</div>
             <div class="chip" data-val="100" onclick="selectChip(100, this)">100</div>
@@ -216,13 +216,13 @@
         </div>
     </div>
 
-    <div id="statusMsg" class="status-box">팀을 선택해 포인트를 투자하세요!</div>
+    <div id="statusMsg" class="status-box">팀을 선택해 포인트를 베팅하세요!</div>
 
     <!-- 닉네임 입력 모달 -->
     <div id="nickModal" class="modal-overlay" style="display: flex;">
         <div class="nick-input-box">
             <h3 style="color: #00f0ff;">🙋‍♂️ 닉네임을 입력하세요</h3>
-            <p style="font-size: 12px; color: #888;">이름/학번을 입력해 승부예측에 참여하세요.</p>
+            <p style="font-size: 12px; color: #888;">이름/학번을 입력해 베팅에 참여하세요.</p>
             <input type="text" id="nickInput" placeholder="예: 3학년1반 김철수" maxlength="12" onkeypress="if(event.key==='Enter') saveNickname()">
             <button class="action-btn" onclick="saveNickname()">입장하기</button>
         </div>
@@ -233,8 +233,8 @@
         <h3 style="color: #ffd700; text-align: center;">👑 관리자 제어판</h3>
         
         <div style="display:flex; gap:8px;">
-            <button class="action-btn settle-red" style="flex:1;" onclick="settleWinner('red')">🏆 RED 승리 (2배 지급)</button>
-            <button class="action-btn settle-blue" style="flex:1;" onclick="settleWinner('blue')">🏆 BLUE 승리 (2배 지급)</button>
+            <button class="action-btn settle-red" style="flex:1;" onclick="settleWinner('red')">🏆 RED 승리</button>
+            <button class="action-btn settle-blue" style="flex:1;" onclick="settleWinner('blue')">🏆 BLUE 승리</button>
         </div>
 
         <button class="action-btn" onclick="giveAllUsers(1000)">🎁 모든 사용자에게 +1000P 지급</button>
@@ -400,7 +400,7 @@
     });
 
     // --- 👑 관리자 시스템 ---
-    const ADMIN_PIN = "7777";
+    const ADMIN_PIN = "0427";
 
     function tryAdminAccess() {
         const pin = prompt("관리자 비밀번호를 입력하세요:");
@@ -418,7 +418,7 @@
 
     function settleWinner(winningTeam) {
         const teamTitle = winningTeam === 'red' ? '🔴 RED' : '🔵 BLUE';
-        if (!confirm(`${teamTitle} 팀의 승리로 정산하시겠습니까?\n승리 팀 투자자에게 2배 배당금이 지급되며 다음 라운드로 리셋됩니다.`)) return;
+        if (!confirm(`${teamTitle} 팀의 승리로 정산하시겠습니까?\n승리 팀에게 2배 배팅금이 지급되며 다음 라운드로 리셋됩니다.`)) return;
 
         db.ref('users').once('value', (snapshot) => {
             const users = snapshot.val() || {};
